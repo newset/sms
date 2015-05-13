@@ -22,25 +22,25 @@ function getAccessToken(cb) {
         if(err) throw err;
 
         if(reply) {
-            return reply.toString();
-        }
+            cb(reply.toString());
+        }else{
+            var data = {
+                grant_type : "client_credentials",
+                app_id : config.sms.app_id,
+                app_secret : config.sms.app_secret
+            };
 
-        var data = {
-            grant_type : "client_credentials",
-            app_id : config.sms.app_id,
-            app_secret : config.sms.app_secret
-        };
+            req.post(url.access_token,{form:data},function(err,res,body){
+                body = JSON.parse(body);
+                console.log(body);
+                if(body.res_code != 0) throw body.res_message;
 
-        req.post(url.access_token,{form:data},function(err,res,body){
-            body = JSON.parse(body);
-            console.log(body);
-            if(body.res_code != 0) throw body.res_message;
-
-            redis.set("sms_access_token", body.access_token, body.expires_in, function(e, d){
-                console.log(e, d);
+                redis.set("sms_access_token", body.access_token, body.expires_in, function(e, d){
+                    console.log(e, d);
+                });
+                cb(body);
             });
-            cb(body);
-        });
+        }
     });
 
 }
@@ -62,12 +62,10 @@ sms = {
      * http://open.189.cn/index.php?m=api&c=index&a=show&id=858
      */
     templateSms : function(phone,active_code,template_id,callback) {
-        getAccessToken(function(_body){
-            var access_token = _body.access_token;
-
+        getAccessToken(function(token){
             var form = {
                 app_id : config.sms.app_id,
-                access_token : access_token,
+                access_token : token,
                 acceptor_tel : phone,
                 template_id : template_id,
                 template_param : JSON.stringify({
